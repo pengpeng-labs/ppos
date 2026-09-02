@@ -6,13 +6,14 @@
 重新收进同一个仓库。
 
 ```text
-ppos 0.1.0 镜像
-├── ossh 0.1.0       系统交互策略
-├── oscore 0.1.0     内存、任务、事件、能力与服务
-└── osbare 0.1.0     x86-64 启动和机器机制
+ppos 0.2.0 镜像
+├── ossh 0.1.1       系统交互策略
+├── ppnet 0.2.0      有界网络策略与协议 adapter
+├── oscore 0.1.3     内存、任务、事件、能力与服务
+└── osbare 0.1.1     x86-64 启动和机器机制
 ```
 
-v0.1.0 证明了 pplang 组件能够定义一个小型操作系统产品，同时让 C 和汇编继续
+v0.2.0 证明了 pplang 组件能够定义一个小型操作系统产品，同时让 C 和汇编继续
 承担它们更适合的机器工作。最终产物是静态链接、单地址空间的 QEMU x86-64 镜像，
 包含协作式系统核心与交互式恢复 Shell。
 
@@ -28,23 +29,27 @@ v0.1.0 证明了 pplang 组件能够定义一个小型操作系统产品，同�
 - 支持编辑、history、补全和命令注册的交互式 Shell；
 - version、组件矩阵和 Shell supervisor 产品命令；
 - Shell 任务内部失败后的自动重建策略。
+- 有界 Ethernet/ARP/IPv4/ICMP/UDP/DNS 与单 session TCP/TLS 组合；
+- 产品级 network 状态与 QEMU gateway ping 命令。
 
 ## 构建与运行
 
 需要 pplang/pplc/pptc 0.4.0、`x86_64-elf-*` GCC/binutils、QEMU 和
-netcat。将 osbare v0.1.0 checkout 放在相邻目录，或显式指定路径：
+netcat。将 osbare v0.1.1 和 ppnet v0.2.0 checkout 放在相邻目录，或显式指定路径：
 
 ```bash
 make \
   PPTC=/path/to/pptc/target/debug/pp \
-  OSBARE_DIR=/path/to/osbare
+  OSBARE_DIR=/path/to/osbare \
+  PPNET_DIR=/path/to/ppnet
 
 make run \
   PPTC=/path/to/pptc/target/debug/pp \
-  OSBARE_DIR=/path/to/osbare
+  OSBARE_DIR=/path/to/osbare \
+  PPNET_DIR=/path/to/ppnet
 ```
 
-产品产物是 `build/ppos-v0.1.0.elf`。`make run` 打开 QEMU 平台图形窗口，
+产品产物是 `build/ppos-v0.2.0.elf`。`make run` 打开 QEMU 平台图形窗口，
 同时把串口输出写到当前终端；只使用串口时运行 `make run-headless`。
 
 进入 `pp>` 后可以先执行：
@@ -57,13 +62,15 @@ memory
 services
 tasks
 supervisor
+network
+ping
 ```
 
 ## 版本边界
 
-ppos 0.1.0 明确不包含文件系统语义、网络协议、数据库、POSIX 层、用户态、
-WASM runtime 或 Agent。这些属于后续组件；不能因为早期实验曾把它们放在一个
-源码树里，就让它们进入可启动地基。
+ppos 0.2.0 组合 ppnet，但仍明确不包含文件系统语义、数据库、POSIX 层、用户态、
+WASM runtime、HTTP client 或 Agent。网络配置目前固定面向 QEMU。TLS 要求 caller
+提供 trust anchor；产品不会把测试证书伪装成系统 CA store。
 
 详细内容见[命令参考](COMMANDS.zh-CN.md)、[架构](ARCHITECTURE.zh-CN.md)、
 [组件矩阵](COMPONENTS.zh-CN.md)和[兼容性](COMPATIBILITY.zh-CN.md)。

@@ -1,4 +1,4 @@
-# ppos 0.1.0 command reference
+# ppos 0.2.0 command reference
 
 [Simplified Chinese](COMMANDS.zh-CN.md)
 
@@ -10,17 +10,20 @@ operations in the single ppos address space; they do not launch processes.
 | Command | Purpose |
 |---|---|
 | `version` | Print the ppos release version. |
-| `components` | Print the pinned osbare, oscore, ossh, and ppos versions. |
+| `components` | Print the pinned osbare, oscore, ossh, ppnet, and ppos versions. |
 | `supervisor` | Show the Shell task slot, state, run count, and restart count. |
+| `network` | Show static network readiness and transport bounds. |
+| `ping` | Send one bounded ICMP echo to the configured QEMU gateway. |
 
 Examples:
 
 ```text
 pp> components
-osbare 0.1.0
-oscore 0.1.0
-ossh 0.1.0
-ppos 0.1.0
+osbare 0.1.1
+oscore 0.1.3
+ossh 0.1.1
+ppnet 0.2.0
+ppos 0.2.0
 
 pp> supervisor
 shell_task=0 state=1 runs=32 restarts=0
@@ -40,7 +43,7 @@ ready while it handles a command and waiting while no keyboard input exists.
 | `log` | Read retained structured oscore log records. | `system.inspect` |
 | `ticks` | Print the current monotonic clock tick. | `clock` |
 
-The ppos v0.1.0 Shell runs with the trusted root principal, so these commands
+The ppos v0.2.0 Shell runs with the trusted root principal, so these commands
 are available in the release image. A future restricted Shell principal would
 receive `permission denied` when it lacks the required capability.
 
@@ -55,7 +58,7 @@ receive `permission denied` when it lacks the required capability.
 | `clear` | Advance and clear the bounded text viewport. |
 
 The tokenizer accepts at most eight whitespace-separated tokens including the
-command name. Version 0.1.0 does not interpret quotes, escapes, variables,
+command name. Version 0.2.0 does not interpret quotes, escapes, variables,
 redirection, pipes, glob patterns, or shell scripts.
 
 ## Editing keys

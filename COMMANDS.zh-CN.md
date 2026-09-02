@@ -1,4 +1,4 @@
-# ppos 0.1.0 命令参考
+# ppos 0.2.0 命令参考
 
 [English](COMMANDS.md)
 
@@ -10,17 +10,20 @@
 | 命令 | 作用 |
 |---|---|
 | `version` | 输出 ppos 发布版本。 |
-| `components` | 输出固定的 osbare、oscore、ossh 和 ppos 版本。 |
+| `components` | 输出固定的 osbare、oscore、ossh、ppnet 和 ppos 版本。 |
 | `supervisor` | 查看 Shell 任务槽位、状态、运行次数和重启次数。 |
+| `network` | 查看静态网络 readiness 与 transport 上限。 |
+| `ping` | 向配置的 QEMU gateway 发送一次有界 ICMP echo。 |
 
 示例：
 
 ```text
 pp> components
-osbare 0.1.0
-oscore 0.1.0
-ossh 0.1.0
-ppos 0.1.0
+osbare 0.1.1
+oscore 0.1.3
+ossh 0.1.1
+ppnet 0.2.0
+ppos 0.2.0
 
 pp> supervisor
 shell_task=0 state=1 runs=32 restarts=0
@@ -40,7 +43,7 @@ shell_task=0 state=1 runs=32 restarts=0
 | `log` | 读取 oscore 保留的结构化日志。 | `system.inspect` |
 | `ticks` | 输出当前单调时钟 tick。 | `clock` |
 
-ppos v0.1.0 的 Shell 使用可信 root principal，因此发布镜像可以执行这些命令。
+ppos v0.2.0 的 Shell 使用可信 root principal，因此发布镜像可以执行这些命令。
 未来使用受限 principal 时，缺少对应 capability 会返回 `permission denied`。
 
 ## Shell 工具
@@ -53,7 +56,7 @@ ppos v0.1.0 的 Shell 使用可信 root principal，因此发布镜像可以执�
 | `history` | 列出最近十六条不连续重复的命令行。 |
 | `clear` | 推进并清理有界文本视口。 |
 
-tokenizer 最多接受八个以空白分隔的 token，包含命令名。v0.1.0 不解释引号、
+tokenizer 最多接受八个以空白分隔的 token，包含命令名。v0.2.0 不解释引号、
 转义、变量、重定向、管道、glob 或 Shell 脚本。
 
 ## 编辑按键

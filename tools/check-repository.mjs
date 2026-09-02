@@ -5,6 +5,10 @@ const source = readFileSync('src/main.pp', 'utf8');
 if (!source.includes('@ossh/src/ossh.pp')) {
   throw new Error('ppos must compose through ossh');
 }
+if (!source.includes('@ppnet/src/ppnet.pp')
+    || !source.includes('@ppnet/src/oscore_port.pp')) {
+  throw new Error('ppos v0.2 must compose through the published ppnet port');
+}
 if (source.includes('@oscore/') || source.includes('@osbare/')) {
   throw new Error('ppos source must preserve the ossh -> oscore -> osbare dependency chain');
 }

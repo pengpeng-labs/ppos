@@ -31,20 +31,24 @@ jobs:
           git clone --branch v0.4.0 --depth 1 https://github.com/pengpeng-labs/pptc.git "$RUNNER_TEMP/pptc"
           LLVM_SYS_181_PREFIX=/usr/lib/llvm-18 cargo build --locked --manifest-path "$RUNNER_TEMP/pptc/Cargo.toml"
 
-      - name: Checkout osbare 0.1.0
-        run: git clone --branch v0.1.0 --depth 1 https://github.com/pengpeng-labs/osbare.git "$RUNNER_TEMP/osbare"
+      - name: Checkout osbare 0.1.1
+        run: git clone --branch v0.1.1 --depth 1 https://github.com/pengpeng-labs/osbare.git "$RUNNER_TEMP/osbare"
+
+      - name: Checkout ppnet 0.2.0
+        run: git clone --branch v0.2.0 --depth 1 https://github.com/pengpeng-labs/ppnet.git "$RUNNER_TEMP/ppnet"
 
       - name: Verify ppos
         run: |
           make verify \
             PPTC="$RUNNER_TEMP/pptc/target/debug/pp" \
             OSBARE_DIR="$RUNNER_TEMP/osbare" \
+            PPNET_DIR="$RUNNER_TEMP/ppnet" HOST_CC=gcc \
             AS=as CC=gcc LD=ld AR=ar NM=nm OBJCOPY=objcopy READELF=readelf \
             QEMU=qemu-system-x86_64
 
       - name: Upload QEMU image
         uses: actions/upload-artifact@v4
         with:
-          name: ppos-v0.1.0-x86_64-qemu
-          path: build/ppos-v0.1.0.elf
+          name: ppos-v0.2.0-x86_64-qemu
+          path: build/ppos-v0.2.0.elf
           if-no-files-found: error

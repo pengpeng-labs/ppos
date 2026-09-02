@@ -2,23 +2,31 @@ version = 1
 
 [[package]]
 name = "osbare"
-version = "0.1.0"
-source = "git+https://github.com/pengpeng-labs/osbare.git?tag=v0.1.0"
-checksum = "301bdbfee7cd181c6c4dc3766893b9ac2fcc66dc07d202efb01e3ad75ab4ea4e"
-commit = "d709afb90dfaa0a7346e3e438ef29dce383aef3d"
+version = "0.1.1"
+source = "git+https://github.com/pengpeng-labs/osbare.git?tag=v0.1.1"
+checksum = "7bb5c182c9379326e758ccb4519f2d7306f74df5dee3c45e80895300b1df5ec5"
+commit = "67a3d124aa7c9096c474753f6a36bbfeb3c76b25"
 
 [[package]]
 name = "oscore"
-version = "0.1.0"
-source = "git+https://github.com/pengpeng-labs/oscore.git?tag=v0.1.0"
-checksum = "a8a2d3767c61fc7d67b8a73639ca5cfcbb05802f611d98c1e48979f2c4248247"
-commit = "95136e8ff845772c83ba615fe50d2a46f158ee50"
+version = "0.1.3"
+source = "git+https://github.com/pengpeng-labs/oscore.git?tag=v0.1.3"
+checksum = "d7d4a781a399a9d0b422cae08d31fdab935e06f19b592b8f8d66daf169c3f418"
+commit = "155c6d0683effc8c34cdb5cb620706d00e81eb98"
 dependencies = ["osbare"]
 
 [[package]]
 name = "ossh"
-version = "0.1.0"
-source = "git+https://github.com/pengpeng-labs/ossh.git?tag=v0.1.0"
-checksum = "db3fc884b1a06a57aa1efb2ed3337481b9f08c664abb91fa5fe3e6c9ceeb2203"
-commit = "a67b994335d9c303efee52581c9d24b9c0946d03"
+version = "0.1.1"
+source = "git+https://github.com/pengpeng-labs/ossh.git?tag=v0.1.1"
+checksum = "64c363c023e989b514d3631fc2a9a5e2a192c1cb162b2e21d5b8cf2f02c97e9a"
+commit = "c514284ca253b2ee2c1a95191100782a3838c9ad"
+dependencies = ["oscore"]
+
+[[package]]
+name = "ppnet"
+version = "0.2.0"
+source = "git+https://github.com/pengpeng-labs/ppnet.git?tag=v0.2.0"
+checksum = "16d27386987ef98fafdd66d6c38450dcb888ee18d093a818f4430417642de2f1"
+commit = "04e0cf156b8860a76627851ca2517b77edc095ab"
 dependencies = ["oscore"]

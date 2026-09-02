@@ -47,11 +47,19 @@ send_keys() {
 
 wait_for 'PPOS READY'
 wait_for 'OSSH PROMPT READY'
+wait_for 'PPOS NETWORK READY'
 
 send_keys 'sendkey c 20\nsendkey o 20\nsendkey m 20\nsendkey p 20\nsendkey o 20\nsendkey n 20\nsendkey e 20\nsendkey n 20\nsendkey t 20\nsendkey s 20\nsendkey ret 20\n'
-wait_for 'osbare 0.1.0'
-wait_for 'oscore 0.1.0'
-wait_for 'ossh 0.1.0'
+wait_for 'osbare 0.1.1'
+wait_for 'oscore 0.1.3'
+wait_for 'ossh 0.1.1'
+wait_for 'ppnet 0.2.0'
+
+send_keys 'sendkey n 20\nsendkey e 20\nsendkey t 20\nsendkey w 20\nsendkey o 20\nsendkey r 20\nsendkey k 20\nsendkey ret 20\n'
+wait_for 'network ready=yes'
+
+send_keys 'sendkey p 20\nsendkey i 20\nsendkey n 20\nsendkey g 20\nsendkey ret 20\n'
+wait_for 'ping gateway 10.0.2.2 ok'
 
 send_keys 'sendkey s 20\nsendkey u 20\nsendkey p 20\nsendkey tab 20\nsendkey ret 20\n'
 wait_for 'shell_task='
@@ -66,8 +74,8 @@ wait_for 'task 0 state='
 send_keys 'sendkey h 20\nsendkey e 20\nsendkey l 20\nsendkey p 20\nsendkey ret 20\n'
 wait_for 'Show the pinned component matrix'
 
-grep -q 'composition: osbare + oscore + ossh' "$log"
+grep -q 'composition: osbare + oscore + ossh + ppnet' "$log"
 grep -q 'OSCORE INIT PASS' "$log"
-grep -q 'ossh 0.1.0' "$log"
+grep -q 'ppnet 0.2.0' "$log"
 grep -q 'PPOS READY' "$log"
 cat "$log"
