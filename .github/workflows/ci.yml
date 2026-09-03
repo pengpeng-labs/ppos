@@ -63,7 +63,7 @@ jobs:
             WAMR_DIR="$RUNNER_TEMP/wamr" \
             BEARSSL_SOURCE="$RUNNER_TEMP/ppnet/build/third_party/bearssl-0.6" \
             FX_WASM="$GITHUB_WORKSPACE/build/fx-ppos/fx-ppos.wasm" \
-            HOST_CC=gcc AS=as CC=gcc LD=ld AR=ar NM=nm OBJCOPY=objcopy READELF=readelf \
+            HOST_CC=gcc AS=as CC=gcc LD=ld AR=ar RANLIB=ranlib NM=nm OBJCOPY=objcopy READELF=readelf \
             QEMU=qemu-system-x86_64
 
       - name: Upload QEMU image

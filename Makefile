@@ -12,6 +12,7 @@ OBJCOPY := x86_64-elf-objcopy
 READELF := x86_64-elf-readelf
 NM := x86_64-elf-nm
 AR := x86_64-elf-ar
+RANLIB := x86_64-elf-ranlib
 QEMU := qemu-system-x86_64
 
 BUILD := build
@@ -44,7 +45,7 @@ pphttp-component:
 osrt-component:
 	test -n "$(WAMR_DIR)"
 	$(MAKE) -C $(OSRT_DIR) build/freestanding/libosrt_wamr.a \
-		WAMR_DIR=$(WAMR_DIR) AS=$(AS) CC=$(CC) AR=$(AR) RANLIB=x86_64-elf-ranlib
+		WAMR_DIR=$(WAMR_DIR) AS=$(AS) CC=$(CC) AR=$(AR) RANLIB=$(RANLIB)
 
 $(BUILD)/deepseek_trust.o: c/deepseek_trust.c c/digicert_global_root_g2.h | $(BUILD)
 	test -n "$(BEARSSL_SOURCE)"
