@@ -1,6 +1,6 @@
 [package]
 name = "ppos"
-version = "0.2.0"
+version = "0.3.0"
 language = "0.4.0"
 default-target = "image"
 
@@ -10,5 +10,7 @@ root = "src/main.pp"
 target = "x86_64-unknown-none"
 
 [dependencies]
-ossh = { git = "https://github.com/pengpeng-labs/ossh.git", tag = "v0.1.1" }
-ppnet = { git = "https://github.com/pengpeng-labs/ppnet.git", tag = "v0.2.0" }
+ossh = { git = "https://github.com/pengpeng-labs/ossh.git", tag = "v0.1.2" }
+ppnet = { git = "https://github.com/pengpeng-labs/ppnet.git", tag = "v0.2.2" }
+pphttp = { git = "https://github.com/pengpeng-labs/pphttp.git", tag = "v0.1.0" }
+osrt = { git = "https://github.com/pengpeng-labs/osrt.git", tag = "v0.1.1" }

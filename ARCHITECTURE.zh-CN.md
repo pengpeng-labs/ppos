@@ -2,46 +2,80 @@
 
 [English](ARCHITECTURE.md)
 
-## 产品，而不是另一个子系统
+## 产品组合
 
-ppos 负责镜像组合、发布身份、启动顺序和顶层生命周期策略，不再复制硬件、核心或
-Shell 逻辑。正常依赖方向只有：
+ppos 负责镜像组合、发布身份、启动顺序、顶层生命周期、网络配置、trust anchor
+和 application authority，不再复制机器、核心、Shell、协议、HTTP 或 WASM runtime
+逻辑。
 
 ```text
-ppos -> ossh  -> oscore -> osbare -> x86-64 机器
-     -> ppnet -> oscore
+                    +----------------------+
+                    | ppos product policy  |
+                    +-----+-----+-----+----+
+                          |     |     |
+                 +--------+     |     +---------+
+                 v              v               v
+               ossh           ppnet            osrt ---- WAMR ---- fx.wasm
+                 |              |                |         C        Zig port
+                 |              +---- pphttp ----+
+                 +--------------+----------------+
+                                v
+                             oscore
+                                v
+                             osbare
+                                v
+                      QEMU x86-64 machine
 ```
 
-manifest 将 ossh 和 ppnet 声明为直接包依赖，两者共享同一个锁定的 oscore 0.1.3
-instance；pptc 传递锁定 osbare。最终 ELF 组合链接 osbare 发布的入口对象，以及
-ppnet 可复现构建的 uIP/BearSSL archive。启动与 native archive 组合仍在 pplang
-包产物边界之外。
+manifest 锁定 pplang package graph。由于 pptc 0.4 尚不打包 C archive，Make
+负责组合 freestanding native archive。ppnet 可复现构建锁定的 uIP 与 BearSSL；
+pphttp 包装 picohttpparser；osrt 包装 WAMR；fx port 记录锁定的上游 revision 和
+可审阅 patch。ppos 只持有这些合同之上的产品胶水与策略。
 
 ## 启动顺序
 
-1. osbare 快照 Multiboot 状态并调用 `osbare_main`。
-2. ppos 校验并初始化 oscore。
-3. ppos 为可信系统策略创建 root principal。
-4. ppos 初始化 ossh 和 ppnet oscore port。
-5. ppos 安装有界的 QEMU 静态网络策略并初始化 TCP。
-6. ppos 注册产品命令与 Shell 协作任务。
-7. supervisor 持续推进 oscore 并观察 Shell 状态。
+1. osbare 进入 long mode、快照 Multiboot state 并调用 `osbare_main`。
+2. ppos 初始化 oscore 并创建可信 root principal。
+3. ppos 初始化 ossh、ppnet、QEMU 静态网络与 TLS trust。
+4. ppos 保留有界 WAMR pool，并接纳 Multiboot 传入的 fx module。
+5. ppos 注册产品命令并启动 Shell 协作任务。
+6. supervisor 推进 oscore，并重启已经停止的 Shell task。
+7. `agent run` 使用显式 capability set 创建新的 WAMR instance。
 
-镜像入口类型和核心初始化前不可恢复错误的 halt，是 ppos 策略仅有的 osbare ABI
-接触点；正常运行只使用 ossh、ppnet 与 oscore 合同。ppnet 持有协议状态，ppos
-持有配置与 authority。
+## Agent 数据路径
 
-## Supervisor
+```text
+遮蔽键盘输入 -> ppos 易失 key buffer -> WASM environment
+fx DeepSeek provider -> osrt HTTP capability    -> ppos HTTP host
+                     -> pphttp response decoder -> ppnet DNS/TCP/TLS
+                     -> oscore packet service   -> osbare e1000
+```
 
-Shell 是可信轮询任务，不是进程。如果任务进入 stopped 状态，ppos 记录结果、回收
-旧槽位、使用同一个 root principal 创建新 Shell 任务、递增重启计数并重绘提示符。
-这是生命周期恢复，不是内存或权限隔离。
+fx 发出 OpenAI-compatible streaming request。ppos 在传输前创建 Authorization
+header，ppnet 使用锁定 trust anchor 验证配置的 HTTPS host，pphttp 解码有界
+HTTP/1.1 response，osrt 将 response chunk 暴露给 WASM。API key 不会编译进 fx，
+也不会由 ppos 持久化。
 
-## 信任边界
+## 信任与隔离
 
-v0.1 所有代码共享一个地址空间并以机器特权运行。capability 用于在可审阅的服务
-边界防止意外越权，不能抵御任意内存破坏。未来普通应用应放在 osrt 与外置、经过
-验证的 WASM runtime 后面。
+Shell 与 native component 都是可信代码并共享 ring 0。root principal 和
+capability 在 service 与 WASM host 边界明确 authority；它们是策略检查，不是
+native 内存隔离。WAMR 验证并约束 WASM module，但所有 native C、汇编和 pplang
+代码仍属于同一个 trusted computing base。
 
-TLS code 通过 ppnet 进入镜像，但 ppos v0.2 不安装全局 trust store。未来 application
-或 packaging component 必须先提供显式 trust anchor，才能打开 TLS session。
+fx instance 只获得 terminal、clock、random、HTTP 与 configuration capability，
+没有 block 或 raw packet capability。当前 trust store 只含配置的 DeepSeek endpoint
+所需 anchor，不是通用系统 CA store。
+
+## 资源上限
+
+- QEMU memory：384 MiB；
+- oscore physical page pool：32,768 pages（128 MiB）；
+- WAMR runtime pool：128 MiB；
+- WASM linear memory ceiling：2,048 pages（128 MiB）；
+- instance host heap：4 MiB；
+- buffered HTTP response：512 KiB；
+- 同时一个 HTTP/TCP/TLS session；
+- 同时一个前台 Agent instance。
+
+这些是 v0.3 的显式产品选择，不是通用扩展性承诺。

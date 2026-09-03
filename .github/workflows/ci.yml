@@ -14,41 +14,61 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes build-essential llvm-18-dev libpolly-18-dev netcat-openbsd qemu-system-x86
+          sudo apt-get install --yes build-essential cmake curl git llvm-18-dev libpolly-18-dev netcat-openbsd qemu-system-x86 unzip
 
       - name: Install Rust 1.88
         uses: dtolnay/rust-toolchain@1.88.0
+
+      - name: Install Zig 0.16.0
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
 
       - name: Build pptc 0.4.0
         run: |
           git clone --branch v0.4.0 --depth 1 https://github.com/pengpeng-labs/pptc.git "$RUNNER_TEMP/pptc"
           LLVM_SYS_181_PREFIX=/usr/lib/llvm-18 cargo build --locked --manifest-path "$RUNNER_TEMP/pptc/Cargo.toml"
 
-      - name: Checkout osbare 0.1.1
-        run: git clone --branch v0.1.1 --depth 1 https://github.com/pengpeng-labs/osbare.git "$RUNNER_TEMP/osbare"
+      - name: Fetch pinned system components
+        run: |
+          git clone --branch v0.1.3 --depth 1 https://github.com/pengpeng-labs/osbare.git "$RUNNER_TEMP/osbare"
+          git clone --branch v0.2.2 --depth 1 https://github.com/pengpeng-labs/ppnet.git "$RUNNER_TEMP/ppnet"
+          git clone --branch v0.1.0 --depth 1 https://github.com/pengpeng-labs/pphttp.git "$RUNNER_TEMP/pphttp"
+          git clone --branch v0.1.1 --depth 1 https://github.com/pengpeng-labs/osrt.git "$RUNNER_TEMP/osrt"
+          git clone --branch WAMR-2.4.5 --depth 1 https://github.com/bytecodealliance/wasm-micro-runtime.git "$RUNNER_TEMP/wamr"
+          git clone https://github.com/vercel-labs/fx.git "$RUNNER_TEMP/fx"
+          git -C "$RUNNER_TEMP/fx" checkout 79666393e5f613c85f2f0b4b65475f1addd55379
+          sh "$RUNNER_TEMP/ppnet/tools/fetch-third-party.sh"
 
-      - name: Checkout ppnet 0.2.0
-        run: git clone --branch v0.2.0 --depth 1 https://github.com/pengpeng-labs/ppnet.git "$RUNNER_TEMP/ppnet"
+      - name: Verify and build fx port
+        run: |
+          FX_SOURCE="$RUNNER_TEMP/fx" ZIG=zig ports/fx-ppos/test.sh
+          FX_SOURCE="$RUNNER_TEMP/fx" ZIG=zig ports/fx-ppos/build.sh
 
       - name: Verify ppos
         run: |
           make verify \
             PPTC="$RUNNER_TEMP/pptc/target/debug/pp" \
             OSBARE_DIR="$RUNNER_TEMP/osbare" \
-            PPNET_DIR="$RUNNER_TEMP/ppnet" HOST_CC=gcc \
-            AS=as CC=gcc LD=ld AR=ar NM=nm OBJCOPY=objcopy READELF=readelf \
+            PPNET_DIR="$RUNNER_TEMP/ppnet" \
+            PPHTTP_DIR="$RUNNER_TEMP/pphttp" \
+            OSRT_DIR="$RUNNER_TEMP/osrt" \
+            WAMR_DIR="$RUNNER_TEMP/wamr" \
+            BEARSSL_SOURCE="$RUNNER_TEMP/ppnet/build/third_party/bearssl-0.6" \
+            FX_WASM="$GITHUB_WORKSPACE/build/fx-ppos/fx-ppos.wasm" \
+            HOST_CC=gcc AS=as CC=gcc LD=ld AR=ar NM=nm OBJCOPY=objcopy READELF=readelf \
             QEMU=qemu-system-x86_64
 
       - name: Upload QEMU image
         uses: actions/upload-artifact@v4
         with:
-          name: ppos-v0.2.0-x86_64-qemu
-          path: build/ppos-v0.2.0.elf
+          name: ppos-v0.3.0-x86_64-qemu
+          path: build/ppos-v0.3.0.elf
           if-no-files-found: error

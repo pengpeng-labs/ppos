@@ -1,6 +1,7 @@
 import "@ossh/src/ossh.pp";
 import "@ppnet/src/ppnet.pp";
 import "@ppnet/src/oscore_port.pp";
+import "agent.pp";
 
 static ppos_shell_task: int = -1;
 static ppos_shell_restarts: u64;
@@ -17,16 +18,19 @@ fn ppos_fail(message: str) {
 }
 
 fn ppos_command_version(line: u64, args: *OsShArgs) -> int {
-    ossh_write("ppos 0.2.0\n");
+    ossh_write("ppos 0.3.0\n");
     return 0;
 }
 
 fn ppos_command_components(line: u64, args: *OsShArgs) -> int {
-    ossh_write("osbare 0.1.1\n");
-    ossh_write("oscore 0.1.3\n");
-    ossh_write("ossh 0.1.1\n");
-    ossh_write("ppnet 0.2.0\n");
-    ossh_write("ppos 0.2.0\n");
+    ossh_write("osbare 0.1.3\n");
+    ossh_write("oscore 0.1.4\n");
+    ossh_write("ossh 0.1.2\n");
+    ossh_write("ppnet 0.2.2\n");
+    ossh_write("pphttp 0.1.0\n");
+    ossh_write("osrt 0.1.1\n");
+    ossh_write("fx 0.0.6-ppos\n");
+    ossh_write("ppos 0.3.0\n");
     return 0;
 }
 
@@ -83,6 +87,8 @@ fn ppos_register_commands() -> bool {
             &ppos_command_network)
         && ossh_register("ping", "Ping the configured gateway",
             &ppos_command_ping)
+        && ossh_register("agent", "Configure and run the fx WASM agent",
+            &ppos_agent_command)
         && ossh_register("supervisor", "Show Shell lifecycle state",
             &ppos_command_supervisor);
 }
@@ -126,12 +132,13 @@ fn ppos_supervise_shell() {
 }
 
 fn osbare_main(boot_info: *OsBareBootInfo) {
-    oscore_platform_write("ppos 0.2.0\n");
-    oscore_platform_write("composition: osbare + oscore + ossh + ppnet\n");
+    oscore_platform_write("ppos 0.3.0\n");
+    oscore_platform_write("composition: osbare + oscore + ossh + ppnet + osrt + fx\n");
     if (!oscore_init(boot_info)) { ppos_fail("oscore-init"); }
     ppos_root_principal = oscore_principal_root();
     if (!ossh_init(ppos_root_principal)) { ppos_fail("ossh-init"); }
     if (!ppos_init_network()) { ppos_fail("ppnet-init"); }
+    if (!ppos_agent_init(boot_info)) { ppos_fail("agent-init"); }
     if (!ppos_register_commands()) { ppos_fail("command-register"); }
     if (!ppos_start_shell()) { ppos_fail("shell-start"); }
     ossh_write("\nPPOS NETWORK READY\n");

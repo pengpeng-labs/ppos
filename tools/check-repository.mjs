@@ -7,7 +7,10 @@ if (!source.includes('@ossh/src/ossh.pp')) {
 }
 if (!source.includes('@ppnet/src/ppnet.pp')
     || !source.includes('@ppnet/src/oscore_port.pp')) {
-  throw new Error('ppos v0.2 must compose through the published ppnet port');
+  throw new Error('ppos must compose through the published ppnet port');
+}
+if (!source.includes('import "agent.pp"')) {
+  throw new Error('ppos v0.3 must compose the Agent host');
 }
 if (source.includes('@oscore/') || source.includes('@osbare/')) {
   throw new Error('ppos source must preserve the ossh -> oscore -> osbare dependency chain');
@@ -16,7 +19,10 @@ if (/\b(outb|inb|cli|sti|hlt)\s*\(/.test(source) || /0xB8000/i.test(source)) {
   throw new Error('ppos product policy cannot access hardware directly');
 }
 
-const textExtensions = new Set(['.md', '.pp', '.sh', '.mjs', '.toml', '.yml']);
+const textExtensions = new Set([
+  '.c', '.h', '.lock', '.md', '.mjs', '.pp', '.sh', '.toml', '.yml',
+  '.zig',
+]);
 function checkTextTree(directory) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     if (['.git', 'build', 'target'].includes(entry.name)) continue;
@@ -35,4 +41,11 @@ function checkTextTree(directory) {
 }
 
 checkTextTree('.');
+if (readFileSync('VERSION', 'utf8').trim() !== '0.3.0') {
+  throw new Error('VERSION must be 0.3.0');
+}
+if (!readFileSync('pp.toml', 'utf8').includes('tag = "v0.1.1"')
+    || !readFileSync('pp.toml', 'utf8').includes('tag = "v0.2.2"')) {
+  throw new Error('ppos v0.3 must use published osrt and ppnet tags');
+}
 console.log('PPOS REPOSITORY PASS');

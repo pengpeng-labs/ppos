@@ -1,0 +1,231 @@
+diff --git a/src/builtins/gateway.zig b/src/builtins/gateway.zig
+--- a/src/builtins/gateway.zig
++++ b/src/builtins/gateway.zig
+@@ -40,8 +40,8 @@ const Request = web_search_contract.ProviderRequest;
+ const Response = web_search_contract.ProviderResponse;
+ const ProgressFn = web_search_contract.ProgressFn;
+ 
+-pub const default_model = "moonshotai/kimi-k3";
+-pub const default_chat_url = "https://ai-gateway.vercel.sh/v3/ai/language-model";
++pub const default_model = "deepseek-v4-flash";
++pub const default_chat_url = "https://api.deepseek.com/chat/completions";
+ pub const models_path = "/coding-agent/v1/models";
+ const credits_path = "/coding-agent/v1/credits";
+ pub const retry_count: usize = 3;
+diff --git a/src/core/auth/credentials.zig b/src/core/auth/credentials.zig
+--- a/src/core/auth/credentials.zig
++++ b/src/core/auth/credentials.zig
+@@ -5,6 +5,7 @@ const grok_oauth = @import("grok_oauth.zig");
+ const debug_trace = @import("../shared/debug_trace.zig");
+ const host = @import("../hosts/host.zig");
+ const io_mod = @import("../shared/io.zig");
++const host_target = @import("../hosts/target.zig");
+ const model_provider = @import("../config/model_provider.zig");
+ const oauth = @import("oauth.zig");
+ const oauth_session = @import("oauth_session.zig");
+@@ -196,8 +197,15 @@ pub const LoadMode = enum { stored, refresh_if_needed };
+ 
+ const FxLoginRefreshMode = enum { if_needed, force };
+ 
+-pub const missing_credential_message = "Fx needs access to Vercel AI Gateway. Run fx login to sign in, fx setup to use an API key, or set AI_GATEWAY_API_KEY.";
+-pub const missing_interactive_credential_message = "Fx needs access to Vercel AI Gateway. Run /login to sign in, /setup to use an API key, or set AI_GATEWAY_API_KEY.";
++const gateway_api_key_env = if (host_target.is_wasm) "DEEPSEEK_API_KEY" else "AI_GATEWAY_API_KEY";
++pub const missing_credential_message = if (host_target.is_wasm)
++    "Fx needs a DeepSeek API key from its host. Run ppos agent setup."
++else
++    "Fx needs access to Vercel AI Gateway. Run fx login to sign in, fx setup to use an API key, or set AI_GATEWAY_API_KEY.";
++pub const missing_interactive_credential_message = if (host_target.is_wasm)
++    "DeepSeek is not configured. Exit fx and run ppos agent setup."
++else
++    "Fx needs access to Vercel AI Gateway. Run /login to sign in, /setup to use an API key, or set AI_GATEWAY_API_KEY.";
+ pub const missing_chatgpt_credential_message = "fx needs a Codex subscription login for this model. Run fx login codex.";
+ pub const missing_chatgpt_interactive_credential_message = "Codex needs a subscription login. Run /login, open Connections, then choose Codex subscription.";
+ pub const missing_grok_credential_message = "fx needs a Grok subscription login for this model. Run fx login grok.";
+@@ -400,7 +408,7 @@ pub fn loadSource(
+ ) !?Credential {
+     return switch (source) {
+         .vercel_oidc_token => loadEnvCredential(alloc, "VERCEL_OIDC_TOKEN", source),
+-        .ai_gateway_api_key => loadEnvCredential(alloc, "AI_GATEWAY_API_KEY", source),
++        .ai_gateway_api_key => loadEnvCredential(alloc, gateway_api_key_env, source),
+         .fx_login => loadFxLoginCredential(alloc, transport),
+         .stored_key => loadStoredKeyCredential(alloc, secret_store),
+         .chatgpt_subscription => loadChatGptCredential(alloc, transport, .if_needed),
+@@ -415,7 +423,7 @@ pub fn sourceExists(
+ ) !bool {
+     return switch (source) {
+         .vercel_oidc_token => nonEmptyEnvValue("VERCEL_OIDC_TOKEN") != null,
+-        .ai_gateway_api_key => nonEmptyEnvValue("AI_GATEWAY_API_KEY") != null,
++        .ai_gateway_api_key => nonEmptyEnvValue(gateway_api_key_env) != null,
+         .fx_login => blk: {
+             const loaded = oauth_session.load(alloc) catch |err| switch (err) {
+                 error.OutOfMemory => return err,
+@@ -651,7 +659,7 @@ fn credentialRefreshAfterMs(expires_at_ms: i64, refreshed_at_ms: ?i64) i64 {
+ pub fn sourceLabel(source: Source) []const u8 {
+     return switch (source) {
+         .vercel_oidc_token => "VERCEL_OIDC_TOKEN",
+-        .ai_gateway_api_key => "AI_GATEWAY_API_KEY",
++        .ai_gateway_api_key => gateway_api_key_env,
+         .fx_login => "fx login",
+         .stored_key => "stored API key (" ++ stored_key_backend_label ++ ")",
+         .chatgpt_subscription => "Codex subscription",
+diff --git a/src/gateway/host_stream_provider.zig b/src/gateway/host_stream_provider.zig
+--- a/src/gateway/host_stream_provider.zig
++++ b/src/gateway/host_stream_provider.zig
+@@ -34,10 +34,23 @@ pub const Transport = struct {
+ 
+ pub const ProviderContext = struct {
+     build_fn: *const fn (Allocator, stream_provider.RequestData) anyerror![]u8,
++    consume_fn: ConsumeFn,
+     endpoint: Endpoint,
+     transport: Transport,
++    gateway_headers: bool,
+ };
+ 
++pub const ConsumeFn = *const fn (
++    Allocator,
++    *std.Io.Reader,
++    *anyopaque,
++    stream_provider.StreamCallback,
++    ?stream_provider.ToolStartCallback,
++    ?stream_provider.StreamCallback,
++    *std.atomic.Value(bool),
++    ?usize,
++) anyerror!@import("../core/shared/types.zig").ModelCompletion;
++
+ pub const Endpoint = union(enum) {
+     fixed: []const u8,
+     resolve: *const fn () []const u8,
+@@ -62,7 +75,28 @@ pub fn initContext(
+     endpoint: Endpoint,
+     transport: Transport,
+ ) ProviderContext {
+-    return .{ .build_fn = build_fn, .endpoint = endpoint, .transport = transport };
++    return .{
++        .build_fn = build_fn,
++        .consume_fn = gateway_client.consumeGatewaySseStream,
++        .endpoint = endpoint,
++        .transport = transport,
++        .gateway_headers = true,
++    };
++}
++
++pub fn initContextWithConsumer(
++    build_fn: *const fn (Allocator, stream_provider.RequestData) anyerror![]u8,
++    endpoint: Endpoint,
++    consume_fn: ConsumeFn,
++    transport: Transport,
++) ProviderContext {
++    return .{
++        .build_fn = build_fn,
++        .consume_fn = consume_fn,
++        .endpoint = endpoint,
++        .transport = transport,
++        .gateway_headers = false,
++    };
+ }
+ 
+ fn stream(raw: ?*anyopaque, alloc: Allocator, request: stream_provider.ModelRequest) anyerror!stream_provider.Result {
+@@ -79,18 +113,23 @@ fn stream(raw: ?*anyopaque, alloc: Allocator, request: stream_provider.ModelRequest) anyerror!stream_provider.Result {
+     try headers.appendSlice(alloc, &.{
+         .{ .name = "content-type", .value = "application/json" },
+         .{ .name = "authorization", .value = auth },
+-        .{ .name = "HTTP-Referer", .value = "https://github.com/vercel-labs/fx" },
+-        .{ .name = "X-Title", .value = "fx" },
+-        .{ .name = "ai-gateway-protocol-version", .value = "0.0.1" },
+-        .{ .name = "ai-language-model-specification-version", .value = "4" },
+-        .{ .name = "ai-language-model-id", .value = request.model },
+-        .{ .name = "ai-language-model-streaming", .value = "true" },
+-    });
+-    if (request.credential.tenant) |team| if (team.len > 0) try headers.append(alloc, .{ .name = "x-vercel-ai-gateway-team", .value = team });
+-    if (request.session_id) |session_id| if (session_id.len > 0) try headers.appendSlice(alloc, &.{
+-        .{ .name = "x-session-id", .value = session_id },
+-        .{ .name = "x-session-affinity", .value = session_id },
+     });
++    if (context.gateway_headers) {
++        try headers.appendSlice(alloc, &.{
++            .{ .name = "HTTP-Referer", .value = "https://github.com/vercel-labs/fx" },
++            .{ .name = "X-Title", .value = "fx" },
++            .{ .name = "ai-gateway-protocol-version", .value = "0.0.1" },
++            .{ .name = "ai-language-model-specification-version", .value = "4" },
++            .{ .name = "ai-language-model-id", .value = request.model },
++            .{ .name = "ai-language-model-streaming", .value = "true" },
++        });
++        if (request.credential.tenant) |team| if (team.len > 0)
++            try headers.append(alloc, .{ .name = "x-vercel-ai-gateway-team", .value = team });
++        if (request.session_id) |session_id| if (session_id.len > 0) try headers.appendSlice(alloc, &.{
++            .{ .name = "x-session-id", .value = session_id },
++            .{ .name = "x-session-affinity", .value = session_id },
++        });
++    }
+ 
+     var headers_json: std.Io.Writer.Allocating = .init(alloc);
+     defer headers_json.deinit();
+@@ -123,7 +162,7 @@ fn stream(raw: ?*anyopaque, alloc: Allocator, request: stream_provider.ModelRequest) anyerror!stream_provider.Result {
+     var reader: HostStreamReader = undefined;
+     reader.init(transport, handle, request.cancel_flag, request.cooperative_pulse);
+     var events = request.events;
+-    const completion = gateway_client.consumeGatewaySseStream(
++    const completion = context.consume_fn(
+         alloc,
+         &reader.interface,
+         &events,
+@@ -138,7 +177,10 @@ fn stream(raw: ?*anyopaque, alloc: Allocator, request: stream_provider.ModelRequest) anyerror!stream_provider.Result {
+     };
+     return .{ .completed = .{
+         .completion = completion,
+-        .usage = gatewayUsageOutcome(request, completion),
++        .usage = if (context.gateway_headers)
++            gatewayUsageOutcome(request, completion)
++        else
++            .{ .immediate = null },
+         .ownership = .owned,
+     } };
+ }
+diff --git a/src/gateway/js_host_stream_provider.zig b/src/gateway/js_host_stream_provider.zig
+--- a/src/gateway/js_host_stream_provider.zig
++++ b/src/gateway/js_host_stream_provider.zig
+@@ -1,6 +1,6 @@
+ const stream_provider = @import("../core/agent/stream_provider.zig");
+ const host_stream_provider = @import("host_stream_provider.zig");
+-const builtin_gateway = @import("../builtins/gateway.zig");
++const deepseek = @import("../providers/deepseek.zig");
+ 
+ extern "fx" fn fx_http_stream_open(
+     method_ptr: [*]const u8,
+@@ -16,13 +16,18 @@ extern "fx" fn fx_http_stream_status(handle: i32, status_out: *u16) i32;
+ extern "fx" fn fx_http_stream_next(handle: i32, out_ptr: [*]u8, out_cap: usize) i32;
+ extern "fx" fn fx_http_stream_close(handle: i32) void;
+ 
+-const provider_context = host_stream_provider.initContext(builtin_gateway.buildAgentRequest, .{ .resolve = builtin_gateway.agentChatUrl }, .{
+-    .context = null,
+-    .open_fn = open,
+-    .status_fn = status,
+-    .next_fn = next,
+-    .close_fn = close,
+-});
++const provider_context = host_stream_provider.initContextWithConsumer(
++    deepseek.buildAgentRequest,
++    .{ .resolve = deepseek.agentChatUrl },
++    deepseek.consumeDeepSeekSseStream,
++    .{
++        .context = null,
++        .open_fn = open,
++        .status_fn = status,
++        .next_fn = next,
++        .close_fn = close,
++    },
++);
+ 
+ pub fn provider() stream_provider.Provider {
+    return host_stream_provider.provider(@constCast(&provider_context));
+diff --git a/src/main.zig b/src/main.zig
+--- a/src/main.zig
++++ b/src/main.zig
+@@ -2258,6 +2258,7 @@ pub const App = struct {
+     }
+ 
+     fn nativeClearProbeEligible(self: *const App, byte: u8) bool {
++        if (comptime host_target.is_wasm) return false;
+         if (byte < 32 or byte == 127) return false;
+         if (io_mod.getenv("TMUX") != null) return false;
+         if (self.terminal_input_runtime.native_clear_probe.disabled() or

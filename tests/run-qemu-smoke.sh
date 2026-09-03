@@ -18,7 +18,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 "${QEMU:-qemu-system-x86_64}" \
-    -machine pc -cpu max -m 128M -display none -serial file:"$log" \
+    -machine pc -cpu max -m 384M -display none -serial file:"$log" \
     -monitor unix:"$monitor",server,nowait \
     -kernel "$kernel" -initrd "$initrd" -append 'ppos.test=1' \
     -drive file="$disk",format=raw,if=ide \
@@ -50,10 +50,30 @@ wait_for 'OSSH PROMPT READY'
 wait_for 'PPOS NETWORK READY'
 
 send_keys 'sendkey c 20\nsendkey o 20\nsendkey m 20\nsendkey p 20\nsendkey o 20\nsendkey n 20\nsendkey e 20\nsendkey n 20\nsendkey t 20\nsendkey s 20\nsendkey ret 20\n'
-wait_for 'osbare 0.1.1'
-wait_for 'oscore 0.1.3'
-wait_for 'ossh 0.1.1'
-wait_for 'ppnet 0.2.0'
+wait_for 'osbare 0.1.3'
+wait_for 'oscore 0.1.4'
+wait_for 'ossh 0.1.2'
+wait_for 'ppnet 0.2.2'
+wait_for 'pphttp 0.1.0'
+wait_for 'osrt 0.1.1'
+wait_for 'fx 0.0.6-ppos'
+
+send_keys 'sendkey a 20\nsendkey g 20\nsendkey e 20\nsendkey n 20\nsendkey t 20\nsendkey spc 20\nsendkey s 20\nsendkey t 20\nsendkey a 20\nsendkey t 20\nsendkey u 20\nsendkey s 20\nsendkey ret 20\n'
+wait_for 'agent provider=deepseek configured=no'
+
+send_keys 'sendkey a 20\nsendkey g 20\nsendkey e 20\nsendkey n 20\nsendkey t 20\nsendkey spc 20\nsendkey c 20\nsendkey h 20\nsendkey e 20\nsendkey c 20\nsendkey k 20\nsendkey ret 20\n'
+wait_for 'agent runtime ready'
+
+send_keys 'sendkey a 20\nsendkey g 20\nsendkey e 20\nsendkey n 20\nsendkey t 20\nsendkey spc 20\nsendkey b 20\nsendkey a 20\nsendkey s 20\nsendkey e 20\nsendkey spc 20\nsendkey h 20\nsendkey t 20\nsendkey t 20\nsendkey p 20\nsendkey s 20\nsendkey shift-semicolon 20\nsendkey slash 20\nsendkey slash 20\nsendkey a 20\nsendkey p 20\nsendkey i 20\nsendkey dot 20\nsendkey d 20\nsendkey e 20\nsendkey e 20\nsendkey p 20\nsendkey s 20\nsendkey e 20\nsendkey e 20\nsendkey k 20\nsendkey dot 20\nsendkey c 20\nsendkey o 20\nsendkey m 20\nsendkey ret 20\n'
+wait_for 'agent base updated'
+
+send_keys 'sendkey a 20\nsendkey g 20\nsendkey e 20\nsendkey n 20\nsendkey t 20\nsendkey spc 20\nsendkey s 20\nsendkey e 20\nsendkey t 20\nsendkey u 20\nsendkey p 20\nsendkey ret 20\n'
+wait_for 'api_key>'
+send_keys 'sendkey esc 20\n'
+wait_for 'agent setup cancelled'
+
+send_keys 'sendkey a 20\nsendkey g 20\nsendkey e 20\nsendkey n 20\nsendkey t 20\nsendkey spc 20\nsendkey c 20\nsendkey l 20\nsendkey e 20\nsendkey a 20\nsendkey r 20\nsendkey ret 20\n'
+wait_for 'agent secret cleared'
 
 send_keys 'sendkey n 20\nsendkey e 20\nsendkey t 20\nsendkey w 20\nsendkey o 20\nsendkey r 20\nsendkey k 20\nsendkey ret 20\n'
 wait_for 'network ready=yes'
@@ -74,8 +94,8 @@ wait_for 'task 0 state='
 send_keys 'sendkey h 20\nsendkey e 20\nsendkey l 20\nsendkey p 20\nsendkey ret 20\n'
 wait_for 'Show the pinned component matrix'
 
-grep -q 'composition: osbare + oscore + ossh + ppnet' "$log"
+grep -q 'composition: osbare + oscore + ossh + ppnet + osrt + fx' "$log"
 grep -q 'OSCORE INIT PASS' "$log"
-grep -q 'ppnet 0.2.0' "$log"
+grep -q 'ppnet 0.2.2' "$log"
 grep -q 'PPOS READY' "$log"
 cat "$log"
